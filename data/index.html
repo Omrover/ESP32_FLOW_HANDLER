@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Información de Caudal</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+            padding: 0;
+            margin: 0;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 25px 20px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            border-bottom: 3px solid rgba(102, 126, 234, 0.3);
+        }
+
+        .header h1 {
+            color: #2c3e50;
+            margin: 0;
+            font-size: 2.8em;
+            font-weight: 700;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header h1::before {
+            content: "🌊 ";
+            font-size: 1.2em;
+        }
+
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 30px;
+            padding: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .graph-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            flex: 1 1 500px;
+            min-height: 450px;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .graph-container:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .graph-title {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 25px;
+            font-size: 1.6em;
+            font-weight: 600;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #eee;
+        }
+
+        .graph {
+            width: 100%;
+            height: 300px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            position: relative;
+            border: 1px solid #e9ecef;
+            overflow: hidden;
+        }
+
+        .data-info {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 25px;
+            padding: 20px;
+            background: linear-gradient(135deg, #74b9ff, #0984e3);
+            border-radius: 15px;
+            color: white;
+            box-shadow: 0 4px 15px rgba(116, 185, 255, 0.3);
+        }
+
+        .data-item {
+            text-align: center;
+            padding: 10px;
+        }
+
+        .data-value {
+            font-size: 2.2em;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            margin: 5px 0;
+        }
+
+        .data-label {
+            font-size: 0.95em;
+            opacity: 0.9;
+            font-weight: 500;
+        }
+
+        .footer {
+            background: rgba(44, 62, 80, 0.95);
+            color: white;
+            text-align: center;
+            padding: 20px;
+            margin-top: 40px;
+            backdrop-filter: blur(10px);
+            border-top: 3px solid rgba(116, 185, 255, 0.3);
+        }
+
+        .connection-status {
+            margin: 10px 0;
+            font-size: 1.1em;
+        }
+
+        .status-connected {
+            color: #00b894;
+            text-shadow: 0 0 10px rgba(0, 184, 148, 0.5);
+        }
+
+        .status-disconnected {
+            color: #e17055;
+        }
+
+        .tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.85);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 13px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 1000;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.7;
+                transform: scale(1.05);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px 20px;
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .loading::after {
+            content: "...";
+            animation: dots 1.5s infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% { content: "."; }
+            40% { content: ".."; }
+            60%, 100% { content: "..."; }
+        }
+
+        .sensor-badge {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 8px 16px;
+            border-radius: 25px;
+            font-size: 0.85em;
+            font-weight: bold;
+            color: white;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            z-index: 10;
+        }
+
+        .invasivo-badge {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+        }
+
+        .no-invasivo-badge {
+            background: linear-gradient(135deg, #27ae60, #219a52);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+            padding: 0 10px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .stat-value {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #2c3e50;
+            margin: 5px 0;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            color: #7f8c8d;
+            font-weight: 500;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+                gap: 20px;
+            }
+            
+            .graph-container {
+                flex: 1 1 100%;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .data-value {
+                font-size: 1.8em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Información de Caudal</h1>
+    </div>
+
+    <div class="container">
+        <!-- Gráfica Sensor Invasivo -->
+        <div class="graph-container">
+            <div class="sensor-badge invasivo-badge">Sensor Invasivo</div>
+            <div class="graph-title">Caudal - Sensor Invasivo</div>
+            <div class="graph" id="graphInvasivo">
+                <div class="loading">Cargando datos del sensor invasivo</div>
+            </div>
+            <div class="data-info">
+                <div class="data-item">
+                    <div class="data-label">Caudal Actual</div>
+                    <div class="data-value" id="caudalInvasivo">0.00</div>
+                    <div class="data-label">Litros/minuto</div>
+                </div>
+                <div class="data-item">
+                    <div class="data-label">Frecuencia</div>
+                    <div class="data-value" id="frecuenciaInvasivo">0</div>
+                    <div class="data-label">Pulsos/segundo</div>
+                </div>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Máximo</div>
+                    <div class="stat-value" id="maxInvasivo">0.00</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Mínimo</div>
+                    <div class="stat-value" id="minInvasivo">0.00</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Promedio</div>
+                    <div class="stat-value" id="avgInvasivo">0.00</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gráfica Sensor No Invasivo -->
+        <div class="graph-container">
+            <div class="sensor-badge no-invasivo-badge">Sensor No Invasivo</div>
+            <div class="graph-title">Caudal - Sensor No Invasivo</div>
+            <div class="graph" id="graphNoInvasivo">
+                <div class="loading">Cargando datos del sensor no invasivo</div>
+            </div>
+            <div class="data-info">
+                <div class="data-item">
+                    <div class="data-label">Caudal Actual</div>
+                    <div class="data-value" id="caudalNoInvasivo">0.00</div>
+                    <div class="data-label">Litros/minuto</div>
+                </div>
+                <div class="data-item">
+                    <div class="data-label">Frecuencia</div>
+                    <div class="data-value" id="frecuenciaNoInvasivo">0</div>
+                    <div class="data-label">Pulsos/segundo</div>
+                </div>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Máximo</div>
+                    <div class="stat-value" id="maxNoInvasivo">0.00</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Mínimo</div>
+                    <div class="stat-value" id="minNoInvasivo">0.00</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Promedio</div>
+                    <div class="stat-value" id="avgNoInvasivo">0.00</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <div class="connection-status">
+            <span id="statusText">Conectando al servidor WebSocket...</span>
+            <span id="statusIcon" class="status-disconnected">●</span>
+        </div>
+        <div style="margin: 10px 0;">
+            <strong>IP del Cliente:</strong> <span id="clientIP">Detectando...</span>
+        </div>
+        <div>
+            Sistema de Monitoreo de Caudal en Tiempo Real - IoT ESP32
+        </div>
+    </div>
+
+    <script>
+        // Variables globales
+        const ws = new WebSocket(`ws://${window.location.hostname}:81/`);
+        let invasivoData = [];
+        let noInvasivoData = [];
+        let timeData = [];
+        let startTime = Date.now();
+        let invasivoChart, noInvasivoChart;
+
+        // Inicializar gráficas
+        function initCharts() {
+            invasivoChart = {
+                ctx: document.getElementById('graphInvasivo'),
+                data: invasivoData,
+                times: timeData,
+                lastRender: 0,
+                max: 0,
+                min: 0,
+                avg: 0
+            };
+            
+            noInvasivoChart = {
+                ctx: document.getElementById('graphNoInvasivo'),
+                data: noInvasivoData,
+                times: timeData,
+                lastRender: 0,
+                max: 0,
+                min: 0,
+                avg: 0
+            };
+            
+            renderChart(invasivoChart, '#e74c3c', 'invasivo');
+            renderChart(noInvasivoChart, '#27ae60', 'noInvasivo');
+        }
+
+        // Renderizar gráfica
+        function renderChart(chart, color, type) {
+            const canvas = document.createElement('canvas');
+            canvas.width = chart.ctx.offsetWidth;
+            canvas.height = chart.ctx.offsetHeight;
+            chart.ctx.innerHTML = '';
+            chart.ctx.appendChild(canvas);
+            
+            const ctx = canvas.getContext('2d');
+            
+            function draw() {
+                const now = Date.now();
+                if (now - chart.lastRender < 100) return;
+                chart.lastRender = now;
+                
+                // Limpiar canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                if (chart.data.length < 2) {
+                    // Mostrar mensaje si no hay datos suficientes
+                    ctx.fillStyle = '#7f8c8d';
+                    ctx.font = '16px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('Esperando datos...', canvas.width / 2, canvas.height / 2);
+                    return;
+                }
+                
+                // Configuración de márgenes
+                const padding = 50;
+                const graphWidth = canvas.width - padding * 2;
+                const graphHeight = canvas.height - padding * 2;
+                
+                // Encontrar valor máximo para la escala
+                const maxData = Math.max(10, ...chart.data);
+                
+                // Dibujar línea de la gráfica
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 3;
+                ctx.lineJoin = 'round';
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                
+                chart.data.forEach((value, index) => {
+                    const x = padding + (index / (chart.data.length - 1 || 1)) * graphWidth;
+                    const y = canvas.height - padding - (value / maxData) * graphHeight;
+                    
+                    if (index === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                });
+                ctx.stroke();
+                
+                // Rellenar área bajo la curva
+                ctx.fillStyle = color + '40';
+                ctx.beginPath();
+                ctx.moveTo(padding, canvas.height - padding);
+                
+                chart.data.forEach((value, index) => {
+                    const x = padding + (index / (chart.data.length - 1 || 1)) * graphWidth;
+                    const y = canvas.height - padding - (value / maxData) * graphHeight;
+                    ctx.lineTo(x, y);
+                });
+                
+                ctx.lineTo(canvas.width - padding, canvas.height - padding);
+                ctx.closePath();
+                ctx.fill();
+                
+                // Dibujar ejes y etiquetas
+                drawAxes(ctx, canvas, padding, graphWidth, graphHeight, maxData, chart.times);
+                
+                // Dibujar puntos de datos
+                chart.data.forEach((value, index) => {
+                    const x = padding + (index / (chart.data.length - 1 || 1)) * graphWidth;
+                    const y = canvas.height - padding - (value / maxData) * graphHeight;
+                    
+                    ctx.fillStyle = color;
+                    ctx.beginPath();
+                    ctx.arc(x, y, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+            }
+            
+            function drawAxes(ctx, canvas, padding, graphWidth, graphHeight, maxData, times) {
+                // Eje X (Tiempo)
+                ctx.strokeStyle = '#bdc3c7';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(padding, canvas.height - padding);
+                ctx.lineTo(canvas.width - padding, canvas.height - padding);
+                ctx.stroke();
+                
+                // Eje Y (Caudal)
+                ctx.beginPath();
+                ctx.moveTo(padding, padding);
+                ctx.lineTo(padding, canvas.height - padding);
+                ctx.stroke();
+                
+                // Etiqueta eje X
+                ctx.fillStyle = '#2c3e50';
+                ctx.font = '14px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('Tiempo (segundos)', canvas.width / 2, canvas.height - 15);
+                
+                // Etiqueta eje Y
+                ctx.save();
+                ctx.translate(20, canvas.height / 2);
+                ctx.rotate(-Math.PI / 2);
+                ctx.textAlign = 'center';
+                ctx.fillText('Caudal (L/min)', 0, 0);
+                ctx.restore();
+                
+                // Líneas de cuadrícula y etiquetas Y
+                ctx.strokeStyle = '#ecf0f1';
+                ctx.lineWidth = 1;
+                ctx.fillStyle = '#7f8c8d';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'right';
+                
+                for (let i = 0; i <= 5; i++) {
+                    const y = padding + (i / 5) * graphHeight;
+                    const value = (maxData * (1 - i / 5)).toFixed(1);
+                    
+                    // Línea de cuadrícula
+                    ctx.beginPath();
+                    ctx.moveTo(padding, y);
+                    ctx.lineTo(canvas.width - padding, y);
+                    ctx.stroke();
+                    
+                    // Etiqueta de valor
+                    ctx.fillText(value, padding - 8, y + 4);
+                }
+                
+                // Etiquetas eje X (Tiempo)
+                ctx.textAlign = 'center';
+                ctx.fillStyle = '#7f8c8d';
+                
+                for (let i = 0; i < times.length; i += Math.ceil(times.length / 6)) {
+                    const x = padding + (i / (times.length - 1 || 1)) * graphWidth;
+                    ctx.beginPath();
+                    ctx.moveTo(x, canvas.height - padding - 5);
+                    ctx.lineTo(x, canvas.height - padding + 5);
+                    ctx.stroke();
+                    ctx.fillText(times[i].toFixed(0), x, canvas.height - padding + 20);
+                }
+            }
+            
+            // Dibujar inicialmente y configurar intervalo
+            draw();
+            setInterval(draw, 100);
+        }
+
+        // Calcular estadísticas
+        function calculateStats(data) {
+            if (data.length === 0) return { max: 0, min: 0, avg: 0 };
+            
+            const max = Math.max(...data);
+            const min = Math.min(...data);
+            const avg = data.reduce((sum, val) => sum + val, 0) / data.length;
+            
+            return { max, min, avg };
+        }
+
+        // Agregar nuevos datos
+        function addData(invasivo, noInvasivo) {
+            const currentTime = (Date.now() - startTime) / 1000;
+            timeData.push(currentTime);
+            invasivoData.push(invasivo);
+            noInvasivoData.push(noInvasivo);
+            
+            // Mantener solo los últimos 60 puntos de datos
+            if (timeData.length > 60) {
+                timeData.shift();
+                invasivoData.shift();
+                noInvasivoData.shift();
+            }
+            
+            // Actualizar valores en tiempo real
+            document.getElementById('caudalInvasivo').textContent = invasivo.toFixed(2);
+            document.getElementById('caudalNoInvasivo').textContent = noInvasivo.toFixed(2);
+            document.getElementById('frecuenciaInvasivo').textContent = Math.round(invasivo);
+            document.getElementById('frecuenciaNoInvasivo').textContent = Math.round(noInvasivo);
+            
+            // Calcular y actualizar estadísticas
+            const invasivoStats = calculateStats(invasivoData);
+            const noInvasivoStats = calculateStats(noInvasivoData);
+            
+            document.getElementById('maxInvasivo').textContent = invasivoStats.max.toFixed(2);
+            document.getElementById('minInvasivo').textContent = invasivoStats.min.toFixed(2);
+            document.getElementById('avgInvasivo').textContent = invasivoStats.avg.toFixed(2);
+            
+            document.getElementById('maxNoInvasivo').textContent = noInvasivoStats.max.toFixed(2);
+            document.getElementById('minNoInvasivo').textContent = noInvasivoStats.min.toFixed(2);
+            document.getElementById('avgNoInvasivo').textContent = noInvasivoStats.avg.toFixed(2);
+        }
+
+        // WebSocket Event Handlers
+        ws.onopen = function() {
+            document.getElementById('statusText').textContent = 'Conectado al servidor ESP32';
+            document.getElementById('statusIcon').className = 'status-connected pulse';
+            document.getElementById('clientIP').textContent = window.location.hostname;
+            
+            // Inicializar gráficas con datos iniciales
+            initCharts();
+            addData(0, 0);
+            
+            console.log('WebSocket conectado exitosamente');
+        };
+
+        ws.onclose = function() {
+            document.getElementById('statusText').textContent = 'Desconectado - Intentando reconectar...';
+            document.getElementById('statusIcon').className = 'status-disconnected';
+            
+            // Intentar reconexión después de 3 segundos
+            setTimeout(() => {
+                window.location.reload();
+            }, 3000);
+        };
+
+        ws.onerror = function(error) {
+            console.error('WebSocket error:', error);
+            document.getElementById('statusText').textContent = 'Error de conexión WebSocket';
+        };
+
+        ws.onmessage = function(event) {
+            try {
+                const data = JSON.parse(event.data);
+                
+                if (data.caudal !== undefined) {
+                    // Simular datos del sensor no invasivo (para pruebas)
+                    const noInvasivoCaudal = data.caudal * 0.9 + (Math.random() - 0.5) * 0.3;
+                    const InvasivoCaudal = data.caudal * 0.9 + (Math.random() + 0.2) * 0.4;
+                    addData(InvasivoCaudal, noInvasivoCaudal);
+                }
+            } catch (e) {
+                console.error('Error parsing WebSocket data:', e);
+            }
+        };
+
+        // Tooltips interactivos
+        document.addEventListener('mousemove', function(e) {
+            const tooltips = document.querySelectorAll('.tooltip');
+            tooltips.forEach(tooltip => tooltip.remove());
+            
+            if (e.target.classList.contains('data-value') || e.target.classList.contains('graph')) {
+                const tooltip = document.createElement('div');
+                tooltip.className = 'tooltip';
+                
+                if (e.target.classList.contains('data-value')) {
+                    const sensorType = e.target.id.includes('Invasivo') ? 'Invasivo' : 'No Invasivo';
+                    tooltip.textContent = `Valor actual ${sensorType}: ${e.target.textContent}`;
+                } else {
+                    tooltip.textContent = 'Gráfica en tiempo real - Pasa el mouse sobre los puntos para más información';
+                }
+                
+                document.body.appendChild(tooltip);
+                tooltip.style.left = (e.pageX + 15) + 'px';
+                tooltip.style.top = (e.pageY + 15) + 'px';
+                tooltip.style.opacity = '1';
+            }
+        });
+
+        // Limpiar tooltips periódicamente
+        setInterval(() => {
+            const tooltips = document.querySelectorAll('.tooltip');
+            tooltips.forEach(tooltip => tooltip.remove());
+        }, 5000);
+
+        // Efectos de hover mejorados
+        document.querySelectorAll('.graph-container, .stat-card').forEach(element => {
+            element.addEventListener('mouseenter', function() {
+                this.style.transform = this.classList.contains('graph-container') 
+                    ? 'translateY(-8px) scale(1.02)' 
+                    : 'translateY(-3px)';
+            });
+            
+            element.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0) scale(1)';
+            });
+        });
+
+              console.log('Sistema de monitoreo de caudal inicializado');
+    </script>
+</body>
+</html>
